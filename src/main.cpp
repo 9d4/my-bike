@@ -3,7 +3,7 @@
 #include <LittleFS.h>
 
 const char* WIFI_SSID_FILE = "/wifi_ssid";
-const char* WIFI_PWD_FILE = "/wifi_pwd";
+const char* WIFI_PASS_FILE = "/wifi_pwd";
 const char* WIFI_HIDDEN_FILE = "/wifi_hidden";
 const char* WEB_USER_FILE = "/user";
 const char* WEB_PASS_FILE = "/pass";
@@ -349,10 +349,10 @@ void setup()
   }
 
   // WIFI PASSWORD CONFIG
-  File wifiPassFile = LittleFS.open(WIFI_PWD_FILE, "r");
+  File wifiPassFile = LittleFS.open(WIFI_PASS_FILE, "r");
   if (!wifiPassFile) {
     // create it
-    wifiPassFile = LittleFS.open(WIFI_PWD_FILE, "w");
+    wifiPassFile = LittleFS.open(WIFI_PASS_FILE, "w");
     wifiPassFile.print(wifi_pass);
     wifiPassFile.close();
   }

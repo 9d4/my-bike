@@ -76,7 +76,7 @@ const char pwds_html[] PROGMEM = R"rawliteral(
 <body>
   <main>
     <h2>traperbike</h2>
-    <form action="/pwds" method="post">
+    <form action="/pwds-submit" method="get">
       <h3>Change AP credentials</h3>
       <input type="text" name="wifi_ssid" placeholder="SSID" required>
       <input type="text" name="wifi_pass" placeholder="PSK" required>
@@ -85,13 +85,16 @@ const char pwds_html[] PROGMEM = R"rawliteral(
       </label>
       <input type="submit" value="Change">
     </form>
-    <form action="/pwds" method="post">
+    <form action="/pwds-submit" method="get">
       <h3>Change web auth credentials</h3>
       <input type="text" name="username" placeholder="Username" required>
       <input type="text" name="password" placeholder="Password" required>
       <input type="submit" value="Change">
     </form>
-
+    <strong>The device will reboot right after submitted!</strong>
+  </main>
+</body>
+</html>
 )rawliteral";
 
 const uint8_t favicon_ico[] PROGMEM = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 
@@ -586,28 +589,81 @@ void routes() {
     request->send_P(200, "text/html", pwds_html, htmlProcessor);
   });
 
-  server.on("/pwds", HTTP_POST, [](AsyncWebServerRequest *request) {
+  server.on("/pwds-submit", HTTP_GET, [](AsyncWebServerRequest *request) {
     auth(request);
     String ap_ssid;
     String ap_pass;
-    bool ap_hidden;
+    byte ap_hidden = 0;
 
-    if (request->hasParam("wifi_ssid") && request->hasParam("wifi_pass") && request->hasParam("wifi_hidden")) {
+    if (request->hasParam("wifi_ssid") && request->hasParam("wifi_pass")) {
       ap_ssid = request->getParam("wifi_ssid")->value();
       ap_pass = request->getParam("wifi_pass")->value();
-      ap_hidden = request->getParam("wifi_hidden")->value().toInt();
+      if (request->hasParam("wifi_hidden")) {
+        ap_hidden = 1;
+      }
+
+      // print all wifi creds
+      Serial.print("SSID: ");
+      Serial.print(ap_ssid);
+      Serial.print(" - PASS: ");
+      Serial.print(ap_pass);
+      Serial.print(" - HIDDEN: ");
+      Serial.println(ap_hidden);
+
+      // write wifi creds to littlefs
+      LittleFS.begin();
+      // WIFI SSID CONFIG
+      LittleFS.remove(WIFI_SSID_FILE);
+      File wifiSsidFile = LittleFS.open(WIFI_SSID_FILE, "w");
+      wifiSsidFile.print(ap_ssid);
+      wifiSsidFile.close();
+
+      // WIFI PASSWORD CONFIG
+      LittleFS.remove(WIFI_PASS_FILE);
+      File wifiPwdFile = LittleFS.open(WIFI_PASS_FILE, "w");
+      wifiPwdFile.print(ap_pass);
+      wifiPwdFile.close();
+
+      // WIFI HIDDEN CONFIG
+      LittleFS.remove(WIFI_HIDDEN_FILE);
+      File wifiHiddenFile = LittleFS.open(WIFI_HIDDEN_FILE, "w");
+      wifiHiddenFile.print(ap_hidden);
+      wifiHiddenFile.close();
+
+      LittleFS.end();
     }
 
-    // print all vars
-    Serial.print("SSID: ");
-    Serial.print(ap_ssid);
-    Serial.print(" - PASS: ");
-    Serial.print(ap_pass);
-    Serial.print(" - HIDDEN: ");
-    Serial.println(ap_hidden);
+    String user;
+    String pass;
+
+    if (request->hasParam("username") && request->hasParam("password")) {
+      user = request->getParam("username")->value();
+      pass = request->getParam("password")->value();
+
+      // print all user creds
+      Serial.print("USER: ");
+      Serial.print(user);
+      Serial.print(" - PASS: ");
+      Serial.println(pass);
+
+      LittleFS.begin();
+
+      // USERNAME CONFIG
+      LittleFS.remove(WEB_USER_FILE);
+      File userFile = LittleFS.open(WEB_USER_FILE, "w");
+      userFile.print(user);
+      userFile.close();
+
+      // PASSWORD CONFIG
+      LittleFS.remove(WEB_PASS_FILE);
+      File passFile = LittleFS.open(WEB_PASS_FILE, "w");
+      passFile.print(pass);
+      passFile.close();
+    }
 
     // response 200
     request->send(200, "text/html", "OK");
+    ESP.restart();
   });
 
   server.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
