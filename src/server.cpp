@@ -1,4 +1,5 @@
 #include <server.h>
+#include <LittleFS.h>
 
 const char* PARAM_INPUT_1 = "target";
 const char* PARAM_INPUT_2 = "state";
@@ -8,14 +9,15 @@ const char index_html[] PROGMEM = R"rawliteral(
 <html>
 <head>
   <title>traperbike</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <style>
     html {font-family: system-ui;display: inline-block;text-align: center}
     body {margin: 0;padding: 16px;background-color: #080808;color: ghostwhite}
     h3 {margin-bottom:1rem;}
+    button {margin-bottom:.85rem;width:100%%;}
     main {display: grid;align-content: center;justify-content: center;justify-items: center}
     .pushable {background: #19607c;border: none;border-radius: 12px;padding: 0;cursor: pointer;outline-offset: 4px}
-    .front {display: block;padding: 12px 42px;border-radius: 12px;font-size: 1.25rem;background: rgb(0, 152, 240);color: #fff;transform: translateY(-6px)}
+    .front {display: block;padding: 8px 34px;border-radius: 12px;font-size: 1.15rem;background: rgb(0, 152, 240);color: #fff;transform: translateY(-6px)}
     .pushable:active .front {transform: translateY(-2px)}
     .pushable.dgr {background: hsl(340deg 100%% 32%%)}
     .pushable.dgr .front {background: hsl(345deg 100%% 47%%)}
@@ -34,8 +36,10 @@ const char index_html[] PROGMEM = R"rawliteral(
   </main>
   <script>function toggleCheckbox(element) {
       var xhr = new XMLHttpRequest();
-      if (element.checked) { xhr.open("GET", "/update?target=" + element.id + "&state=1", true); }
-      else { xhr.open("GET", "/update?target=" + element.id + "&state=0", true); }
+      var target = element.getAttribute("data-target");
+      var state = element.checked ? 1 : 0;
+      var uri = `/update?target=${target}&state=${state}`;
+      xhr.open("GET", uri, true);
       xhr.send();
     }
   function trigger(element) {
@@ -44,10 +48,51 @@ const char index_html[] PROGMEM = R"rawliteral(
     xhr.open("GET", `/trig?target=${target}`, true);
     xhr.send();
   }
+  function reboot() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/reboot", true);
+    xhr.send();
+  }
   </script>
 </body>
 </html>
 )rawliteral";
+
+// // html form change password for wifi and web auth
+// const char change_pass_html[] PROGMEM = R"rawliteral(
+// <!DOCTYPE HTML>
+// <html>
+// <head>
+//   <title>traperbike</title>
+//   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+//   <style>
+//     html {font-family: system-ui;display: inline-block;text-align: center}
+//     body {margin: 0;padding: 16px;background-color: #080808;color: ghostwhite}
+//     h3 {margin-bottom:1rem;}
+//     button {margin-bottom:.85rem;width:100%%;}
+//     main {display: grid;align-content: center;justify-content: center;justify-items: center}
+//     .pushable {background: #19607c;border: none;border-radius: 12px;padding: 0;cursor: pointer;outline-offset: 4px}
+//     .front {display: block;padding: 8px 34px;border-radius: 12px;font-size: 1.15rem;background: rgb(0, 152, 240);color: #fff;transform: translateY(-6px)}
+//     .pushable:active .front {transform: translateY(-2px)}
+//     .pushable.dgr {background: hsl(340deg 100%% 32%%)}
+//     .pushable.dgr .front {background: hsl(345deg 100%% 47%%)}
+//     .switch {position: relative;display: inline-block;width: 120px;height: 68px}
+//     .switch input {display: none}
+//     .slider {position: absolute;top: 0;left: 0;right: 0;bottom: 0;background-color: #ccc;border-radius: 6px}
+//     .slider:before {position: absolute;content: "";height: 52px;width: 52px;left: 8px;bottom: 8px;background-color: #fff;-webkit-transition: .4s;transition: .4s;border-radius: 3px}
+//     input:checked+.slider {background-color: #2e81b1;}
+//     input:checked+.slider:before {-webkit-transform: translateX(52px);-ms-transform: translateX(52px);transform: translateX(52px)}
+//   </style>
+// </head>
+// <body>
+//   <main>
+//     <h2>traperbike</h2>
+//     <form action="/changepass" method="post">
+//       <h3>Change password</h3>
+//       <input type="password" name="newpass" placeholder="New password" required>
+//       <input type="password" name="newpass2" placeholder="Repeat new password" required>
+//       <input type="submit" value="Change">
+
 
 const uint8_t favicon_ico[] PROGMEM = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 
 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x60, 0x08, 0x06, 0x00, 0x00, 0x00, 0xE2, 0x98, 0x77, 
@@ -335,27 +380,61 @@ const uint8_t favicon_ico[] PROGMEM = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A,
 
 AsyncWebServer server(80);
 
+extern bool find1;
+extern bool find2;
+extern bool find3;
+extern bool beep1;
+extern bool beep2;
+extern bool amberl;
+extern bool amberr;
+extern bool ambers1;
+extern bool fancy1;
+extern bool fancy2;
+extern bool fancy3;
+extern bool hazard;
+
 void auth(AsyncWebServerRequest *request){
   if(!request->authenticate(http_username, http_password)){
     return request->requestAuthentication();
   }
 }
 
-String outputState(int output){
-  if(digitalRead(output)){
+String targetState(bool target){
+  if (target)
     return "checked";
-  }
-  else {
-    return "";
-  }
+  
+  return "";
 }
 
 String htmlProcessor(const String& var){
   if(var == "COMPONENTS"){
     String html = F("");
-    html += "<h3>Basics</h3>";
-    // html += "<h4>IntLed</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"2\" " + outputState(D4) + "><span class=\"slider\"></span></label>";
+    html += "<h3>Find</h3>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"find1\"><span class=\"front\">Silently</span></button>";
+    html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"find2\"><span class=\"front\">Sound Once</span></button>";
+    html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"find3\"><span class=\"front\">Sound Twice</span></button>";
+
+    html += "<h3>Beeps</h3>";
     html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"beep1\"><span class=\"front\">Beep</span></button>";
+    html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"beep2\"><span class=\"front\">Beep 2x</span></button>";
+
+    html += "<h3>Ambers</h3>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"ambers1\"><span class=\"front\">Ambers 1x</span></button>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"amberl\"><span class=\"front\">Amber L</span></button>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"amberr\"><span class=\"front\">Amber R</span></button>";
+
+    html += "<h3>Fancy</h3>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"fancy1\"><span class=\"front\">Fancy 1</span></button>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"fancy2\"><span class=\"front\">Fancy 2</span></button>";
+    html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"fancy3\"><span class=\"front\">Fancy 3</span></button>";
+
+    html += "<h3>Loops</h3>";
+    html += "<h4>Hazard</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" data-target=\"hazard\" " + targetState(hazard) + "><span class=\"slider\"></span></label>";
+
+    // reboot button
+    html += "<br/>";
+    html += "<button class=\"pushable dgr\" onclick=\"reboot()\"><span class=\"front\">Reboot</span></button>";
+
     return html;
   }
 
@@ -388,38 +467,110 @@ void routes() {
     
     String target = request->getParam("target")->value();
 
-    extern bool beep1;
     if (target.equals("beep1")) {
       beep1 = true;
-      Serial.println("DEBUG: BEEP 1");
+      Serial.println("DEBUG: BEEP 1x");
+    }
+
+    if (target.equals("beep2")) {
+      beep2 = true;
+      Serial.println("DEBUG: BEEP 2x");
+    }
+
+    if (target.equals("amberl")) {
+      amberl = true;
+      Serial.println("DEBUG: AMBER L");
+    }
+
+    if (target.equals("amberr")) {
+      amberr = true;
+      Serial.println("DEBUG: AMBER R");
+    }
+
+    if (target.equals("ambers1")) {
+      ambers1 = true;
+      Serial.println("DEBUG: AMBER BOTH 1x");
+    }
+
+    if (target.equals("find1")) {
+      find1 = true;
+      Serial.println("DEBUG: FIND STYLE 1");
+    }
+
+    if (target.equals("find2")) {
+      find2 = true;
+      Serial.println("DEBUG: FIND STYLE 2");
+    }
+
+    if (target.equals("find3")) {
+      find3 = true;
+      Serial.println("DEBUG: FIND STYLE 3");
+    }
+
+    if (target.equals("fancy1")) {
+      fancy1 = true;
+      Serial.println("DEBUG: FANCY 1");
+    }
+
+    if (target.equals("fancy2")) {
+      fancy2 = true;
+      Serial.println("DEBUG: FANCY 2");
+    }
+
+    if (target.equals("fancy3")) {
+      fancy3 = true;
+      Serial.println("DEBUG: FANCY 3");
     }
 
     request->send(200, "text/html", "Done");
   });
 
-  // Send a GET request to <ESP_IP>/update?output=<inputMessage1>&state=<inputMessage2>
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
     auth(request);
-    String inputMessage1;
-    String inputMessage2;
-    // GET input1 value on <ESP_IP>/update?output=<inputMessage1>&state=<inputMessage2>
-    if (request->hasParam(PARAM_INPUT_1) && request->hasParam(PARAM_INPUT_2)) {
-      inputMessage1 = request->getParam(PARAM_INPUT_1)->value();
-      inputMessage2 = request->getParam(PARAM_INPUT_2)->value();
-      digitalWrite(inputMessage1.toInt(), inputMessage2.toInt());
+    if ((!request->hasParam(PARAM_INPUT_1)) || (!request->hasParam(PARAM_INPUT_2))) {
+      return;
     }
-    else {
-      inputMessage1 = "No message sent";
-      inputMessage2 = "No message sent";
+    String target = request->getParam(PARAM_INPUT_1)->value();
+    String state = request->getParam(PARAM_INPUT_2)->value();
+
+    if (target == "hazard") {
+      hazard = state.toInt();
     }
-    Serial.print("GPIO: ");
-    Serial.print(inputMessage1);
+
+    Serial.print("TARGET: ");
+    Serial.print(target);
     Serial.print(" - Set to: ");
-    Serial.println(inputMessage2);
+    Serial.println(state);
     request->send(200, "text/plain", "OK");
   });
 
+  server.on("/getstate", HTTP_GET, [](AsyncWebServerRequest *request) {
+    auth(request);
+    if (!request->hasParam("target"))
+      return request->send(400, "text/plain", "No target specified");
+    
+    String target = request->getParam("target")->value();
+    
+    if (target == "hazard") {
+      request->send(200, "text/plain", String(hazard));
+    }
+  });
+
+  server.on("/change-password", HTTP_GET, [](AsyncWebServerRequest *request) {
+    auth(request);
+    LittleFS.begin();
+    // replace content of file path "/wifi_ssid" in littlefs
+    LittleFS.remove("/wifi_ssid");
+    File ssidFile = LittleFS.open("/wifi_ssid", "w");
+    ssidFile.println("sutelobike");
+    ssidFile.close();
+
+    LittleFS.end();
+    Serial.println("SSID CHANGED!");
+  });
+
   server.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
+    auth(request);
     ESP.restart();
   });
 }
