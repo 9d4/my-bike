@@ -10,6 +10,9 @@ extern String wifi_pass;
 extern bool wifi_hidden; 
 extern String username;
 extern String password;
+extern const char ENGINE;  // GPIO 15
+extern const char ENGINE_LOW;
+extern const char ENGINE_HIGH;
 
 extern AsyncWebServer server;
 

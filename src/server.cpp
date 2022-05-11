@@ -58,41 +58,41 @@ const char index_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// // html form change password for wifi and web auth
-// const char change_pass_html[] PROGMEM = R"rawliteral(
-// <!DOCTYPE HTML>
-// <html>
-// <head>
-//   <title>traperbike</title>
-//   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-//   <style>
-//     html {font-family: system-ui;display: inline-block;text-align: center}
-//     body {margin: 0;padding: 16px;background-color: #080808;color: ghostwhite}
-//     h3 {margin-bottom:1rem;}
-//     button {margin-bottom:.85rem;width:100%%;}
-//     main {display: grid;align-content: center;justify-content: center;justify-items: center}
-//     .pushable {background: #19607c;border: none;border-radius: 12px;padding: 0;cursor: pointer;outline-offset: 4px}
-//     .front {display: block;padding: 8px 34px;border-radius: 12px;font-size: 1.15rem;background: rgb(0, 152, 240);color: #fff;transform: translateY(-6px)}
-//     .pushable:active .front {transform: translateY(-2px)}
-//     .pushable.dgr {background: hsl(340deg 100%% 32%%)}
-//     .pushable.dgr .front {background: hsl(345deg 100%% 47%%)}
-//     .switch {position: relative;display: inline-block;width: 120px;height: 68px}
-//     .switch input {display: none}
-//     .slider {position: absolute;top: 0;left: 0;right: 0;bottom: 0;background-color: #ccc;border-radius: 6px}
-//     .slider:before {position: absolute;content: "";height: 52px;width: 52px;left: 8px;bottom: 8px;background-color: #fff;-webkit-transition: .4s;transition: .4s;border-radius: 3px}
-//     input:checked+.slider {background-color: #2e81b1;}
-//     input:checked+.slider:before {-webkit-transform: translateX(52px);-ms-transform: translateX(52px);transform: translateX(52px)}
-//   </style>
-// </head>
-// <body>
-//   <main>
-//     <h2>traperbike</h2>
-//     <form action="/changepass" method="post">
-//       <h3>Change password</h3>
-//       <input type="password" name="newpass" placeholder="New password" required>
-//       <input type="password" name="newpass2" placeholder="Repeat new password" required>
-//       <input type="submit" value="Change">
+// html form change password for wifi and web auth
+const char pwds_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>traperbike</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <style>
+    html {font-family: system-ui;display: inline-block;text-align: center}
+    body {margin: 0;padding: 16px;background-color: #080808;color: ghostwhite}
+    h3 {margin-bottom:1rem;}
+    button {margin-bottom:.85rem;width:100%%;}
+    main {display: grid;align-content: center;justify-content: center;justify-items: center}
+  </style>
+</head>
+<body>
+  <main>
+    <h2>traperbike</h2>
+    <form action="/pwds" method="post">
+      <h3>Change AP credentials</h3>
+      <input type="text" name="wifi_ssid" placeholder="SSID" required>
+      <input type="text" name="wifi_pass" placeholder="PSK" required>
+      <label> <span>Hidden</span>
+      <input type="checkbox" name="wifi_hidden" value="1">
+      </label>
+      <input type="submit" value="Change">
+    </form>
+    <form action="/pwds" method="post">
+      <h3>Change web auth credentials</h3>
+      <input type="text" name="username" placeholder="Username" required>
+      <input type="text" name="password" placeholder="Password" required>
+      <input type="submit" value="Change">
+    </form>
 
+)rawliteral";
 
 const uint8_t favicon_ico[] PROGMEM = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 
 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x60, 0x08, 0x06, 0x00, 0x00, 0x00, 0xE2, 0x98, 0x77, 
@@ -550,6 +550,12 @@ void routes() {
 
     if (target == "engine") {
       engine = state.toInt();
+
+      if (engine) {
+        digitalWrite(ENGINE, ENGINE_HIGH);
+      } else {
+        digitalWrite(ENGINE, ENGINE_LOW);
+      }
     }
 
     Serial.print("TARGET: ");
@@ -569,19 +575,39 @@ void routes() {
     if (target == "hazard") {
       request->send(200, "text/plain", String(hazard));
     }
+
+    if (target == "engine") {
+      request->send(200, "text/plain", String(engine));
+    }
   });
 
   server.on("/pwds", HTTP_GET, [](AsyncWebServerRequest *request) {
     auth(request);
-    LittleFS.begin();
-    // replace content of file path "/wifi_ssid" in littlefs
-    LittleFS.remove("/wifi_ssid");
-    File ssidFile = LittleFS.open("/wifi_ssid", "w");
-    ssidFile.println("sutelobike");
-    ssidFile.close();
+    request->send_P(200, "text/html", pwds_html, htmlProcessor);
+  });
 
-    LittleFS.end();
-    Serial.println("SSID CHANGED!");
+  server.on("/pwds", HTTP_POST, [](AsyncWebServerRequest *request) {
+    auth(request);
+    String ap_ssid;
+    String ap_pass;
+    bool ap_hidden;
+
+    if (request->hasParam("wifi_ssid") && request->hasParam("wifi_pass") && request->hasParam("wifi_hidden")) {
+      ap_ssid = request->getParam("wifi_ssid")->value();
+      ap_pass = request->getParam("wifi_pass")->value();
+      ap_hidden = request->getParam("wifi_hidden")->value().toInt();
+    }
+
+    // print all vars
+    Serial.print("SSID: ");
+    Serial.print(ap_ssid);
+    Serial.print(" - PASS: ");
+    Serial.print(ap_pass);
+    Serial.print(" - HIDDEN: ");
+    Serial.println(ap_hidden);
+
+    // response 200
+    request->send(200, "text/html", "OK");
   });
 
   server.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {

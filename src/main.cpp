@@ -22,7 +22,6 @@ String password = "123456789";
 #define BELL D1    // GPIO 5
 #define AMBER_L D6 // GPIO 12
 #define AMBER_R D7 // GPIO 13
-#define ENGINE D8  // GPIO 15
 
 #define BELL_HIGH HIGH
 #define BELL_LOW LOW
@@ -30,8 +29,9 @@ String password = "123456789";
 #define AMBER_HIGH LOW
 #define AMBER_LOW HIGH
 
-#define ENGINE_LOW LOW
-#define ENGINE_HIGH HIGH
+const char ENGINE = D5;  // GPIO 14
+const char ENGINE_LOW =  LOW;
+const char ENGINE_HIGH =  HIGH;
 
 /* Controls */
 // determine if the controller is currently has task (e.g. ringing the bell)
@@ -480,13 +480,5 @@ void loop()
 
   if (hazard) {
     blinkHazard();
-  }
-
-  if (engine) {
-    digitalWrite(ENGINE, ENGINE_HIGH);
-  }
-
-  if (!engine) {
-    digitalWrite(ENGINE, ENGINE_LOW);
   }
 }
