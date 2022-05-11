@@ -396,7 +396,7 @@ extern bool hazard;
 extern bool engine;
 
 void auth(AsyncWebServerRequest *request){
-  if(!request->authenticate(http_username, http_password)){
+  if(!request->authenticate(username.c_str(), password.c_str())){
     return request->requestAuthentication();
   }
 }
@@ -571,7 +571,7 @@ void routes() {
     }
   });
 
-  server.on("/change-password", HTTP_GET, [](AsyncWebServerRequest *request) {
+  server.on("/pwds", HTTP_GET, [](AsyncWebServerRequest *request) {
     auth(request);
     LittleFS.begin();
     // replace content of file path "/wifi_ssid" in littlefs

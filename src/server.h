@@ -5,8 +5,11 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
-extern const char* http_username;
-extern const char* http_password;
+extern String wifi_ssid;
+extern String wifi_pass;
+extern bool wifi_hidden; 
+extern String username;
+extern String password;
 
 extern AsyncWebServer server;
 

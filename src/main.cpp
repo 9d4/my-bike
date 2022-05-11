@@ -1,13 +1,12 @@
 #include <ESP8266WiFi.h>
-#include <secret.h>
 #include <server.h>
 #include <LittleFS.h>
 
-#define WIFI_SSID_FILE "/wifi_ssid"
-#define WIFI_PWD_FILE "/wifi_pwd"
-#define WIFI_HIDDEN_FILE "/wifi_hidden"
-#define WEB_USER_FILE "/user"
-#define WEB_PASS_FILE "/pass"
+const char* WIFI_SSID_FILE = "/wifi_ssid";
+const char* WIFI_PWD_FILE = "/wifi_pwd";
+const char* WIFI_HIDDEN_FILE = "/wifi_hidden";
+const char* WEB_USER_FILE = "/user";
+const char* WEB_PASS_FILE = "/pass";
 
 // default credentials
 String wifi_ssid= "traperbike";
