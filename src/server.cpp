@@ -385,6 +385,7 @@ extern bool find2;
 extern bool find3;
 extern bool beep1;
 extern bool beep2;
+extern bool beep3;
 extern bool amberl;
 extern bool amberr;
 extern bool ambers1;
@@ -392,6 +393,7 @@ extern bool fancy1;
 extern bool fancy2;
 extern bool fancy3;
 extern bool hazard;
+extern bool engine;
 
 void auth(AsyncWebServerRequest *request){
   if(!request->authenticate(http_username, http_password)){
@@ -417,6 +419,7 @@ String htmlProcessor(const String& var){
     html += "<h3>Beeps</h3>";
     html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"beep1\"><span class=\"front\">Beep</span></button>";
     html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"beep2\"><span class=\"front\">Beep 2x</span></button>";
+    html += "<button class=\"pushable dgr\" onclick=\"trigger(this)\" data-target=\"beep3\"><span class=\"front\">Beep 3x</span></button>";
 
     html += "<h3>Ambers</h3>";
     html += "<button class=\"pushable\" onclick=\"trigger(this)\" data-target=\"ambers1\"><span class=\"front\">Ambers 1x</span></button>";
@@ -430,6 +433,9 @@ String htmlProcessor(const String& var){
 
     html += "<h3>Loops</h3>";
     html += "<h4>Hazard</h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" data-target=\"hazard\" " + targetState(hazard) + "><span class=\"slider\"></span></label>";
+
+    html += "<h3>Engine</h3>";
+    html += "<label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" data-target=\"engine\" " + targetState(engine) + "><span class=\"slider\"></span></label>";
 
     // reboot button
     html += "<br/>";
@@ -475,6 +481,11 @@ void routes() {
     if (target.equals("beep2")) {
       beep2 = true;
       Serial.println("DEBUG: BEEP 2x");
+    }
+
+    if (target.equals("beep3")) {
+      beep3 = true;
+      Serial.println("DEBUG: BEEP 3x");
     }
 
     if (target.equals("amberl")) {
@@ -535,6 +546,10 @@ void routes() {
 
     if (target == "hazard") {
       hazard = state.toInt();
+    }
+
+    if (target == "engine") {
+      engine = state.toInt();
     }
 
     Serial.print("TARGET: ");

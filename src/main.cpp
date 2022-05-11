@@ -23,12 +23,16 @@ String password = "123456789";
 #define BELL D1    // GPIO 5
 #define AMBER_L D6 // GPIO 12
 #define AMBER_R D7 // GPIO 13
+#define ENGINE D8  // GPIO 15
 
 #define BELL_HIGH HIGH
 #define BELL_LOW LOW
 
 #define AMBER_HIGH LOW
 #define AMBER_LOW HIGH
+
+#define ENGINE_LOW LOW
+#define ENGINE_HIGH HIGH
 
 /* Controls */
 // determine if the controller is currently has task (e.g. ringing the bell)
@@ -38,6 +42,7 @@ bool find2 = false;
 bool find3 = false;
 bool beep1 = false;
 bool beep2 = false;
+bool beep3 = false;
 bool ambers1 = false;
 bool amberl = false;
 bool amberr = false;
@@ -45,6 +50,7 @@ bool fancy1 = false;
 bool fancy2 = false;
 bool fancy3 = false;
 bool hazard = false;
+bool engine = true;
 
 void beep()
 {
@@ -75,6 +81,21 @@ void beep2Time()
   beep();
   onProcess = false;
   beep2 = false;
+}
+
+void beep3Time()
+{
+  if (onProcess)
+    return;
+
+  onProcess = true;
+  beep();
+  delay(65);
+  beep();
+  delay(65);
+  beep();
+  onProcess = false;
+  beep3 = false;
 }
 
 void blinkAmberL()
@@ -301,6 +322,9 @@ void setup()
   pinMode(AMBER_R, OUTPUT);
   digitalWrite(AMBER_R, AMBER_LOW);
 
+  pinMode(ENGINE, OUTPUT);
+  digitalWrite(ENGINE, ENGINE_HIGH);
+
   pinMode(BELL, OUTPUT);
   digitalWrite(BELL, BELL_LOW);
 
@@ -314,7 +338,7 @@ void setup()
   if (!wifiSsidFile) {
     // create it
     wifiSsidFile = LittleFS.open(WIFI_SSID_FILE, "w");
-    wifiSsidFile.println(wifi_ssid);
+    wifiSsidFile.print(wifi_ssid);
     wifiSsidFile.close();
   }
 
@@ -330,7 +354,7 @@ void setup()
   if (!wifiPassFile) {
     // create it
     wifiPassFile = LittleFS.open(WIFI_PWD_FILE, "w");
-    wifiPassFile.println(wifi_pass);
+    wifiPassFile.print(wifi_pass);
     wifiPassFile.close();
   }
 
@@ -346,7 +370,7 @@ void setup()
   if (!wifiHiddenFile) {
     // create it
     wifiHiddenFile = LittleFS.open(WIFI_HIDDEN_FILE, "w");
-    wifiHiddenFile.println(wifi_hidden);
+    wifiHiddenFile.print(wifi_hidden);
     wifiHiddenFile.close();
   }
 
@@ -362,7 +386,7 @@ void setup()
   if (!userNameFile) {
     // create it
     userNameFile = LittleFS.open(WEB_USER_FILE, "w");
-    userNameFile.println(username);
+    userNameFile.print(username);
     userNameFile.close();
   }
 
@@ -378,7 +402,7 @@ void setup()
   if (!passwordFile) {
     // create it
     passwordFile = LittleFS.open(WEB_PASS_FILE, "w");
-    passwordFile.println(password);
+    passwordFile.print(password);
     passwordFile.close();
   }
 
@@ -392,7 +416,7 @@ void setup()
   LittleFS.end();
 
   WiFi.setOutputPower(20);
-  WiFi.softAP(wifi_ssid, wifi_ssid, 1, wifi_hidden, 4);
+  WiFi.softAP(wifi_ssid, wifi_pass, 1, wifi_hidden, 4);
 
   while (WiFi.softAPIP() == INADDR_NONE)
   {
@@ -413,6 +437,10 @@ void loop()
 
   if (beep2) {
     beep2Time();
+  }
+
+  if (beep3) {
+    beep3Time();
   }
 
   if (amberl) {
@@ -453,5 +481,13 @@ void loop()
 
   if (hazard) {
     blinkHazard();
+  }
+
+  if (engine) {
+    digitalWrite(ENGINE, ENGINE_HIGH);
+  }
+
+  if (!engine) {
+    digitalWrite(ENGINE, ENGINE_LOW);
   }
 }
